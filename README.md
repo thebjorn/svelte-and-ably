@@ -1,23 +1,57 @@
-# Using Ably with Svelte - Part 1 - Channels and Subscriptions
+
+<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
+
+<!-- code_chunk_output -->
+
+- [Using Ably with Svelte - Part 0 - Setup and configuration](#using-ably-with-svelte---part-0---setup-and-configuration)
+  - [Considerations for Svelte](#considerations-for-svelte)
+  - [Getting started with Svelte](#getting-started-with-svelte)
+  - [Adding Ably to our Svelte app](#adding-ably-to-our-svelte-app)
+- [Using Ably with Svelte - Part 1 Channels and Subscriptions](#using-ably-with-svelte---part-1-channels-and-subscriptions)
+  - [Subscribing to a channel](#subscribing-to-a-channel)
+    - [Cleaning up](#cleaning-up)
+    - [Displaying messages](#displaying-messages)
+  - [Token authentication](#token-authentication)
+    - [Storing the api key in development](#storing-the-api-key-in-development)
+    - [Creating an api endpoint](#creating-an-api-endpoint)
+    - [Client-side code](#client-side-code)
+- [Using Ably with Svelte - Part 2 - Using Channel Presence](#using-ably-with-svelte---part-2---using-channel-presence)
+  - [What is Presence?](#what-is-presence)
+  - [Our Code So Far](#our-code-so-far)
+  - [Storing Presence Data](#storing-presence-data)
+  - [Subscribing to Presence Events](#subscribing-to-presence-events)
+  - [Adding to the UI](#adding-to-the-ui)
+  - [Sending Presence Data](#sending-presence-data)
+  - [The Full Code Sample](#the-full-code-sample)
+- [Using Ably with Svelte - Part 3 - Ably Lifecycle Functions](#using-ably-with-svelte---part-3---ably-lifecycle-functions)
+  - [Introducing Ably Lifecycle Functions](#introducing-ably-lifecycle-functions)
+  - [Installation](#installation)
+  - [Usage](#usage)
+    - [useChannel](#usechannel)
+    - [usePresence](#usepresence)
+  - [Converting our app to use the Ably Svelte Lifecycle Functions](#converting-our-app-to-use-the-ably-svelte-lifecycle-functions)
+
+<!-- /code_chunk_output -->
+
+
+
+# Using Ably with Svelte - Part 0 - Setup and configuration
 
 Svelte is a rapidly-increasing-in-popularity JavaScript framework for building web applications. It exists in a similar place to `React` and `Vue` - and approaches similar problems - "how can we make modern, reactive, web applications that are both easy to use, and easy to maintain".
 
 Contrary to the two dominent frameworks, `Svelte` approaches this problem from another angle, from their own docs:
 
-    Svelte is a radical new approach to building user interfaces. 
-    Whereas traditional frameworks like React and Vue do the bulk of their work in the browser,
-    Svelte shifts that work into a compile step that happens when you build your app.
+  > Svelte is a radical new approach to building user interfaces. Whereas traditional frameworks like React and Vue do the bulk of their work in the browser, Svelte shifts that work into a compile step that happens when you build your app.
+  >
+  > Instead of using techniques like virtual DOM diffing, Svelte writes code that surgically updates the DOM when the state of your app changes.
 
-    Instead of using techniques like virtual DOM diffing, Svelte writes code that surgically 
-    updates the DOM when the state of your app changes.
-
-While not as popular as the behemoth that is `react`, `Svelte` is a rapidly growing with around ~60k stars on `GitHub` and is [used in 97k projects](https://github.com/sveltejs/svelte/network/dependents?package_id=UGFja2FnZS0xODI4Mjc5NQ%3D%3D).
+While not as popular as the behemoth that is `react`, `Svelte` is a rapidly growing with around 77k stars on `GitHub` and is [used in 306k projects](https://github.com/sveltejs/svelte/network/dependents?package_id=UGFja2FnZS0xODI4Mjc5NQ%3D%3D).
 
 `Svelte` is a great tool for building web applications, but as with all of the modern `SPA`-style frameworks, we need to make sure we use the `Ably JavaScript SDK` effectively and play nicely with the reactive rendering built into the framework.
 
 ## Considerations for Svelte
 
-While `svelte` is a compiler that generates vanilla JavaScript, it shares similarities with the other `React`-style frameworks. `Svelte` apps are all *reactive by default*, so we have to make sure our JavaScript SDK - which maintains open websockets connections to the Ably service - is used effectively.
+We will be using Svelte version 5. While `svelte` is a compiler that generates vanilla JavaScript, it shares similarities with the other `React`-style frameworks. `Svelte` apps are all *reactive by default*, so we have to make sure our JavaScript SDK - which maintains open websockets connections to the Ably service - is used effectively.
 
 To do this:
 
@@ -36,19 +70,24 @@ It's a lo-fi demo, but it contains all the moving parts of any other real-world 
 
 ## Getting started with Svelte
 
-`Svelte` has a [quickstart guide](https://svelte.dev/blog/the-easiest-way-to-get-started) if you've never used the framework before, but in brief, you can use `Svelte` in two different ways:
-
-1. You can experiment in the [Svelte REPL playground](https://svelte.dev/repl/hello-world?version=3.48.0) and download your app when you're ready
-2. You can use `npx` (which is bundled with npm) to run a tool called `degit`.
+`Svelte` has a [quickstart guide](https://svelte.dev/blog/the-easiest-way-to-get-started) that tells you to execute the following commands
 
 ```bash
-npx degit sveltejs/template my-svelte-project
-cd my-svelte-project
+npm create svelte@latest myapp
+cd myapp
 npm install
 npm run dev
 ```
 
-`degit` clones a template repository from `GitHub`, and executing the commands above in a `terminal` will leave you with a working Svelete Hello World app.
+You can use `pnpm` or `yarn` for the last two steps if you prefer.
+
+The first step will give you a series of options. This repository was created using the following options:
+
+1. Which Svelte app template: "Skeleton project"
+2. Add type checking with TypeScript: "Yes, using JavaScript JSDoc comments"
+3. Select additional options: "Svelte 5 preview"
+
+(it is a good idea to update the versions of the dependencies in the `package.json` file at this point.)
 
 ## Adding Ably to our Svelte app
 
@@ -58,13 +97,19 @@ We need one additional dependency to start building our `Ably` integration - the
 npm install ably --save
 ```
 
+The `static/global.css` file has been manually added to `src/app.html`. This file contains some basic styles that will be used in the demo.
+
+
+
+# Using Ably with Svelte - Part 1 Channels and Subscriptions
+
 For the sake of demo we're going to use our Ably API key in our markup - in a real app, we'd need to get this from an API to do `token authentication`, and if we were using `SvelteKit` as an application framework, we'd want to create an `Endpoint` to manage our tokens.
 
-Let's open the `src/App.svelte` file and replace its contents with this:
+Let's open the `/src/routes/+page.svelte` file and replace it with the contents of [`src/routes/examples/01/+page.svelte`](vscode://src/routes/examples/01/+page.svelte):
 
 ```html
 <script>    
-  let messages = [];
+  let messages = $state([]);
 </script>
 
 <div class="App">
@@ -89,17 +134,22 @@ We can now launch our app with `npm run dev`
 npm run dev
 ```
 
-And our app will be served on `http://localhost:5000/` - and you'll see the UI.
+And our app will be served on `http://localhost:5173/` - and you'll see the UI.
+
+![App skeleton](./docs/app-skeleton.png)
+
+## Subscribing to a channel
 
 We're going to add some code to subscribe to an Ably channel, but we need to make sure we only execute our code in the DOM - once our application is mounted in a browser. `Svelte` implements `lifecycle functions` that let us hook into the mounting and rendering process - and we're going to use one called `onMount` - you can [read the offical docs if you'd like a deeper understanding](https://svelte.dev/docs#run-time-svelte-onmount).
 
 `onMount` executes code when our component mounts, and if you return a function from your `onMount` callback, it'll run *that* when the component unmounts or updates.
 
+**Note:** `onMount()` should be used instead of the `$effect()` rune when you are computing (initial) reactive values.
+
 ```html
 <script>
   import { onMount } from "svelte";
-
-  let messages = [];
+  let messages = $state([]);
 
   onMount(() => {
       // code to run when component mounts
@@ -111,14 +161,14 @@ We're going to add some code to subscribe to an Ably channel, but we need to mak
 </script>
 ```
 
-We're going to expand out our `onMount` call to initilise the `Ably JavaScript SDK`, and return an instance of a `channel`. We're going to save this `channel instance` to a variable called `channel` as we'll need it later.
+We're going to expand out our `$effect` call to initilise the `Ably JavaScript SDK`, and return an instance of a `channel`. We're going to save this `channel instance` to a variable called `channel` as we'll need it later.
 
 ```html
 <script>
   import { onMount } from "svelte";
   import * as Ably from "ably";
 
-  let messages = [];
+  let messages = $state([]);
   let channel = null;
 
   onMount(() => {    
@@ -130,7 +180,9 @@ We're going to expand out our `onMount` call to initilise the `Ably JavaScript S
     channel = ably.channels.get("your-channel-name");
 
     return () => {
-        // code to run when component unmounts
+      // code to run when component unmounts
+      channel?.unsubscribe(channel);
+      channel?.detach();
     };
   });
 </script>
@@ -147,30 +199,35 @@ const ably = new Ably.Realtime.Promise({
 channel = ably.channels.get("your-channel-name");
 
 channel.subscribe((message) => {
-    messages = [...messages, message];
+    messages.push(message);
 });
 ```
 
 In this block of code, we're subscribing to all the messages that will be sent to the channel, and we're going to add them to our `messages` array.
 
-Our `messages` array is **reactive by default** in `Svelte` - this means that when it is *assigned to* in our `onMount` callback, it will automatically update the DOM and re-render the app. In the callback passed to the `subscribe` call, we're creating a new array with the contents of the existing messages array, and then adding the new message to the end of the array, effectively appending the new message to the end of our collection.
+Our `messages` array is **reactive by default** in `Svelte` - this means that when it is modified in our `$effect` rune, it will automatically update the DOM and re-render the app.
 
-If we stopped here, **we would have a terrible bug in our code** that would cause our app to use up it's quota of messages quickly - because each time the app mounts, it's subscribing to our channel. This means every time a message arrives, we're adding an additional subscription, and we'll be adding subscriptions exponentially with each new message.
+### Cleaning up
 
-We're going to fix this bug by adding code to the returned function that acts as an `onUnmount` hook.
+If we stopped here, **we would have a terrible bug in our code** that would cause our app to use up it's quota of messages quickly - because each time the app mounts, it's subscribing to our channel. This means every time a message arrives, we're adding an additional subscription, and we'll be adding subscriptions exponentially with each new message. This scenario will also happens when HMR (Hot Module Reloading) unmounts and remounts your component.
 
 ```javascript
   onMount(() => {    
     ....
 
     return () => {
-      channel.unsubscribe(channel);
-      channel.detach();
+      channel?.unsubscribe(channel);
+      channel?.detach();
     };
   });
 ```
 
-In our returned function, we're unsubscribing from our channel, and detaching the channel from `Ably`. We're now not leaking connections and using up our quotes unnecessarily. Our application will now correctly render any messages that arrive on our channel using the `Svelte` HTML loop from our first sample:
+In our cleanup code, we're unsubscribing from our channel, and detaching the channel from `Ably`. We're now not leaking connections and using up our quotes unnecessarily. 
+
+
+### Displaying messages
+
+Our application will now correctly render any messages that arrive on our channel using the `Svelte` HTML loop from our first sample:
 
 ```html
 <script>
@@ -197,7 +254,7 @@ The `#each` block loops around the `messages` array, and for each message in the
 ```html
 <h1>Ably Svelte Demo</h1>
 <div>
-<button on:click={sendMessage}>Send Message</button>
+  <button onclick={sendMessage}>Send Message</button>
 </div>
 ...
 ```
@@ -210,20 +267,20 @@ const sendMessage = () => {
 };
 ```
 
-When added to our script blockm this function will use the `channel` that we created in the `onMount` callback to publish a message to the channel. The message type here is set to `test-message` and there's a little hardcoded text that matches what the UI code expects.
+When added to our script block this function will use the `channel` that we created in the `onMount` callback to publish a message to the channel. The message type here is set to `test-message` and there's a little hardcoded text that matches what the UI code expects.
 
-The completed `App.svelte` application looks like this:
+The completed [`+page.svelte`](vscode://src/routes/examples/02/+page.svelte) application looks like this:
 
 ```html
 <script>
   import { onMount } from "svelte";
   import * as Ably from "ably";
 
-  let messages = [];
-  let channel = null;
+  let messages = $state([]);
+  let channel = $state();
 
   onMount(() => {
-    const ably = new Ably.Realtime.Promise({
+    const ably = new Ably.Realtime({
       key: "your-api-key-here",
       clientId: "someid",
     });
@@ -231,12 +288,12 @@ The completed `App.svelte` application looks like this:
     channel = ably.channels.get("your-channel-name");
 
     channel.subscribe((message) => {
-      messages = [...messages, message];
+      messages.push(message);
     });
 
     return () => {
-      channel.unsubscribe(channel);
-      channel.detach();
+      channel?.unsubscribe(channel);
+      channel?.detach();
     };
   });
 
@@ -248,7 +305,7 @@ The completed `App.svelte` application looks like this:
 <div class="App">
   <h1>Ably Svelte Demo</h1>
   <div>
-    <button on:click={sendMessage}>Send Message</button>
+    <button onclick={sendMessage}>Send Message</button>
   </div>
 
   <h2>Messages</h2>
@@ -258,24 +315,84 @@ The completed `App.svelte` application looks like this:
     {/each}
   </ul>
 </div>
+
 ```
 
 And it works!
 
 It's quite simple for our apps to use the channels from the Ably JavaScript SDK in `Svelte` - just so long as we make sure we clean up after ourselves.
 
-In the next post of this series, we'll expand on this sample and add support for `Channel Presence` and make use of some `Svelte Stores`.
+## Token authentication
 
+In a real-world application, you would not want to use your API key in the client-side code. Instead, you would use [token authentication](https://www.ably.io/documentation/rest/authentication/#token-authentication) to authenticate your clients. We're going to create an endpoint in our SvelteKit application to provide the token authentication values to our client-side application.
+
+### Storing the api key in development
+
+In development, you can store your API key in a `.env` file in the root of your project. This file should be added to your `.gitignore` file to prevent it from being committed to your repository.
+
+```bash
+# .env
+ABLY_API_KEY=your-api-key-here
+```
+
+In Svelte you can access this value as:
+
+```javascript
+import { ABLY_API_KEY } from "$env/static/private";
+```
+
+which ensures that the value is never loaded in the client-side code.
+
+On the server side this value will be read from the environment variables. Remember to use a different token for your production environment.
+
+### Creating an api endpoint
+
+In SvelteKit, you can create an endpoint to provide the token authentication values to your client-side application. This endpoint will be used to provide the token authentication values to your client-side application.
+
+Create `src/routes/api/ably-auth/+server.js` (this will create an endpoint at `/api/ably-auth`):
+User authentication and authorization is outside the scope of this readme. You can use the [Ably REST API](https://www.ably.io/documentation/rest/authentication) to generate a token for your client.
+
+```javascript
+import * as Ably from 'ably'
+import {json} from '@sveltejs/kit'
+import {ABLY_API_KEY} from '$env/static/private'
+
+const rest = new Ably.Rest({key: ABLY_API_KEY})
+
+export async function GET({request, params, locals}) {
+    // authenticate the user, e.g.:
+    // const session = await locals.auth()
+    // if (!session) fail(401, {status: "error", msg: "not logged in"})
+    // TODO: authorize the user for this action...
+
+    const token_request = await rest.auth.createTokenRequest({
+        clientId: 'your-client-id',
+        capability: {
+            // on all channels (*) give publish and subscribe permissions
+            '*': ['publish', 'subscribe']
+        }
+    })
+    return json(token_request)
+```
+
+You should limit the permissions and channels to the ones the client should have access to.
+
+### Client-side code
+
+In your client side code you need to change the `onMount` function to get the token from the url corresponding to the path of the handler we wrote above:
+
+```javascript
+  const ably = new Ably.Realtime({
+      authUrl: '/api/ably-auth',    
+  });
+```
 
 
 # Using Ably with Svelte - Part 2 - Using Channel Presence
 
-In part 1 of our series on using Ably with `Svelte`, we built a small app to publish and subscribe to messages on a channel. In this post, we're going to expand on that app and add support for `Channel Presence`.
+In part 1, we built a small app to publish and subscribe to messages on a channel. In this post, we're going to expand on that app and add support for `Channel Presence`.
 
-    Ably’s presence feature allows clients or devices to announce their presence on a channel.
-    Other devices or services may then subscribe to these presence events (such as entering,
-    updating their state, or leaving the channel) in real time using our realtime SDKs, or
-    via the Ably Integrations.
+> Ably’s presence feature allows clients or devices to announce their presence on a channel. Other devices or services may then subscribe to these presence events (such as entering, updating their state, or leaving the channel) in real time using our realtime SDKs, or via the Ably Integrations.
 
 
 
@@ -855,5 +972,3 @@ Removing all of the glue code concerned with configuring the Ably JavaScript SDK
 
 We hope that this is a useful addition to your application, and we'd love to hear your feedback on it.
 
-# Using Ably with Svelte - Part 4 - SvelteKit and Token Authentication
-TBD
