@@ -161,7 +161,7 @@ We're going to add some code to subscribe to an Ably channel, but we need to mak
 </script>
 ```
 
-We're going to expand out our `$effect` call to initilise the `Ably JavaScript SDK`, and return an instance of a `channel`. We're going to save this `channel instance` to a variable called `channel` as we'll need it later.
+We're going to expand out our `onMount` call to initilise the `Ably JavaScript SDK`, and set the state variable `channel` as we'll need it later.
 
 ```html
 <script>
@@ -169,7 +169,7 @@ We're going to expand out our `$effect` call to initilise the `Ably JavaScript S
   import * as Ably from "ably";
 
   let messages = $state([]);
-  let channel = null;
+  let channel = $state();
 
   onMount(() => {    
     const ably = new Ably.Realtime.Promise({
@@ -360,7 +360,7 @@ import {ABLY_API_KEY} from '$env/static/private'
 const rest = new Ably.Rest({key: ABLY_API_KEY})
 
 export async function GET({request, params, locals}) {
-    // authenticate the user, e.g.:
+    // TODO: authenticate the user, e.g.:
     // const session = await locals.auth()
     // if (!session) fail(401, {status: "error", msg: "not logged in"})
     // TODO: authorize the user for this action...
